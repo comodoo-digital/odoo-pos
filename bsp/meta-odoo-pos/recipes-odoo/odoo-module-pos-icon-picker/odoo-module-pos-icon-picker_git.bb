@@ -16,13 +16,12 @@ inherit skip-fakeroot-tar
 
 # Función para instalar el módulo en el path de addons persistente
 do_install() {
-    # Ruta de destino en la imagen final
-    install -d ${D}/home/odoo/.local/custom_addons/pos_icon_picker
+    # Ruta de destino en la imagen final (coincide con IOTBOX_ADDONS_DEST en iotbox.bb)
+    install -d ${D}${localstatedir}/lib/odoo/custom_addons/pos_icon_picker
 
     # Copia el contenido del módulo desde el directorio fuente clonado
-    cp -r ${S}/pos_icon_picker/* ${D}/home/odoo/.local/custom_addons/pos_icon_picker/
+    cp -r ${S}/pos_icon_picker/* ${D}${localstatedir}/lib/odoo/custom_addons/pos_icon_picker/
 }
 
 # Especifica los ficheros que este paquete instala.
-# La propiedad de los ficheros será heredada del directorio /home/odoo.
-FILES:${PN} += "/home/odoo/.local/custom_addons/pos_icon_picker"
+FILES:${PN} += "${localstatedir}/lib/odoo/custom_addons/pos_icon_picker"

@@ -13,13 +13,12 @@ inherit skip-fakeroot-tar
 
 # Función para instalar el módulo en el path de addons persistente
 do_install() {
-    # Ruta de destino en la imagen final
-    install -d ${D}/home/odoo/.local/custom_addons/pos_product_loader
+    # Ruta de destino en la imagen final (coincide con IOTBOX_ADDONS_DEST en iotbox.bb)
+    install -d ${D}${localstatedir}/lib/odoo/custom_addons/pos_product_loader
 
     # Copia el contenido del módulo desde el directorio fuente clonado
-    cp -r ${S}/pos_product_loader/* ${D}/home/odoo/.local/custom_addons/pos_product_loader/
+    cp -r ${S}/pos_product_loader/* ${D}${localstatedir}/lib/odoo/custom_addons/pos_product_loader/
 }
 
 # Especifica los ficheros que este paquete instala.
-# La propiedad de los ficheros será heredada del directorio /home/odoo.
-FILES:${PN} += "/home/odoo/.local/custom_addons/pos_product_loader"
+FILES:${PN} += "${localstatedir}/lib/odoo/custom_addons/pos_product_loader"
