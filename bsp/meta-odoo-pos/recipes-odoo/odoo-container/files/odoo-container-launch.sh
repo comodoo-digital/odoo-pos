@@ -17,7 +17,7 @@ fi
 # Ensure all Odoo data directories exist on the host volume.
 # Always enforce write permissions because the directory may already exist
 # from previous installs with restrictive ownership/mode on the host.
-for d in /var/lib/odoo /var/lib/odoo/log /var/lib/odoo/sessions /var/lib/odoo/filestore; do
+for d in /var/lib/odoo /var/lib/odoo/log /var/lib/odoo/sessions /var/lib/odoo/filestore /media; do
     mkdir -p "$d"
     chmod 0777 "$d"
 done
@@ -50,6 +50,7 @@ exec podman run \
     --network host \
     -v /var/lib/odoo:/var/lib/odoo:Z \
     -v "${ODOO_CUSTOM_ADDONS_HOST_PATH}:/home/odoo/.local/custom_addons:Z" \
+    -v /media:/mnt:Z \
     -e PGHOST=127.0.0.1 \
     -e PGPORT=5432 \
     -e PGUSER=odoo \
