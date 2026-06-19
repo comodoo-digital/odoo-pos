@@ -1,12 +1,12 @@
 SUMMARY = "Odoo IoTBox service"
 DESCRIPTION = "Installs odoo-iotbox from GitHub and runs iotbox.py as a systemd daemon"
-HOMEPAGE = "https://github.com/itcomercio/odoo-iotbox"
+HOMEPAGE = "https://github.com/comodoo-digital/odoo-iotbox"
 LICENSE = "CLOSED"
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 SRC_URI = " \
-    git://github.com/itcomercio/odoo-iotbox.git;branch=main;protocol=https \
+    git://github.com/comodoo-digital/odoo-iotbox.git;branch=main;protocol=https \
     file://iotbox.service \
     file://iotbox.env \
 "

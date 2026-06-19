@@ -10,7 +10,7 @@ La receta descarga `odoo-iotbox` directamente desde GitHub usando el fetcher est
 
 Repositorio:
 
-`https://github.com/itcomercio/odoo-iotbox`
+`https://github.com/comodoo-digital/odoo-iotbox`
 
 ## Resultado
 

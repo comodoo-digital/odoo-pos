@@ -1,7 +1,8 @@
 # Workaround for pseudo/fakeroot failure when using tar with Python 3.14
 # This class provides a working perform_packagecopy function that doesn't rely on tar within fakeroot
 
-python perform_packagecopy() {
+python () {
+    d.setVar('perform_packagecopy', """
     import shutil
     import os
 
@@ -16,7 +17,7 @@ python perform_packagecopy() {
         shutil.rmtree(dest)
     os.makedirs(dest, exist_ok=True)
 
-    # Copy all files directly using Python, no tar
+    # Copy all files directly using Python, preserving symlinks
     for root, dirs, files in os.walk(src):
         rel_root = os.path.relpath(root, src)
         dest_dir = dest if rel_root == '.' else os.path.join(dest, rel_root)
@@ -24,16 +25,30 @@ python perform_packagecopy() {
         for d_name in dirs:
             src_dir = os.path.join(root, d_name)
             dest_subdir = os.path.join(dest_dir, d_name)
-            if not os.path.exists(dest_subdir):
-                os.makedirs(dest_subdir, exist_ok=True)
-                # Preserve permissions
-                stat = os.stat(src_dir)
-                os.chmod(dest_subdir, stat.st_mode)
+            if os.path.islink(src_dir):
+                link_to = os.readlink(src_dir)
+                if os.path.exists(dest_subdir) or os.path.islink(dest_subdir):
+                    os.unlink(dest_subdir)
+                os.symlink(link_to, dest_subdir)
+            else:
+                if not os.path.exists(dest_subdir):
+                    os.makedirs(dest_subdir, exist_ok=True)
+                    # Preserve permissions
+                    stat = os.stat(src_dir)
+                    os.chmod(dest_subdir, stat.st_mode)
 
         for f_name in files:
             src_file = os.path.join(root, f_name)
             dest_file = os.path.join(dest_dir, f_name)
             os.makedirs(os.path.dirname(dest_file), exist_ok=True)
-            shutil.copy2(src_file, dest_file)
+            if os.path.islink(src_file):
+                link_to = os.readlink(src_file)
+                if os.path.exists(dest_file) or os.path.islink(dest_file):
+                    os.unlink(dest_file)
+                os.symlink(link_to, dest_file)
+            else:
+                shutil.copy2(src_file, dest_file)
+""")
+    d.setVarFlag('perform_packagecopy', 'func', '1')
+    d.setVarFlag('perform_packagecopy', 'python', '1')
 }
-
