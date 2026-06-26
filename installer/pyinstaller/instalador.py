@@ -535,15 +535,37 @@ class Installer:
             self.log.warning("No se pudo obtener UUID para %s; se usara dispositivo directo", partition_path)
             return None
 
+    def _partition_fstab_spec(self, partition_path):
+        """Devuelve 'UUID=...' si se puede resolver, o el dispositivo directo."""
+        spec = self._get_partition_uuid(partition_path)
+        if spec:
+            return f"UUID={spec}"
+        return partition_path
+
     def _ensure_boot_fstab_entry(self):
+        """Asegura entradas de fstab para / (root) y /boot.
+
+        La entrada de root se anade con opciones de montaje endurecidas para
+        evitar corrupcion de la base de datos de PostgreSQL ante apagados
+        abruptos en hardware SSD/eMMC de consumo (sin proteccion de energia):
+
+          - data=journal : journaliza datos ademas de metadatos. Es el modo mas
+                           seguro de ext4 frente a 'torn pages' tras un corte de
+                           energia (a costa de algo de rendimiento de escritura,
+                           asumible en un POS).
+          - barrier=1    : fuerza las barreras de escritura para que el orden de
+                           confirmacion en disco se respete (imprescindible si la
+                           cache del disco no esta deshabilitada).
+          - noatime      : evita escrituras de metadatos por cada lectura.
+          - passno=1     : habilita fsck del root en el arranque.
+        """
         etc_dir = os.path.join(INSTALLDEST, "etc")
         fstab_path = os.path.join(etc_dir, "fstab")
+
+        root_partition = self.targetdisk + "3"
         boot_partition = self.targetdisk + "1"
-        boot_spec = self._get_partition_uuid(boot_partition)
-        if boot_spec:
-            boot_spec = f"UUID={boot_spec}"
-        else:
-            boot_spec = boot_partition
+        root_spec = self._partition_fstab_spec(root_partition)
+        boot_spec = self._partition_fstab_spec(boot_partition)
 
         existing_lines = []
         if os.path.isfile(fstab_path):
@@ -552,29 +574,51 @@ class Installer:
         else:
             mkdir_p(etc_dir)
 
+        # Detectar que puntos de montaje ya estan definidos para no duplicarlos.
+        existing_mountpoints = set()
         for raw_line in existing_lines:
             line = raw_line.strip()
             if not line or line.startswith('#'):
                 continue
             fields = line.split()
-            if len(fields) > 1 and fields[1] == "/boot":
-                self.log.info("fstab ya contiene una entrada para /boot; no se modifica")
-                return
+            if len(fields) > 1:
+                existing_mountpoints.add(fields[1])
+
+        root_entry = (
+            f"{root_spec} / ext4 defaults,data=journal,barrier=1,noatime 0 1\n"
+        )
+        boot_entry = f"{boot_spec} /boot ext4 defaults 0 2\n"
+
+        new_entries = []
+        if "/" not in existing_mountpoints:
+            new_entries.append(("/", root_entry))
+        else:
+            self.log.info("fstab ya contiene una entrada para /; no se modifica")
+        if "/boot" not in existing_mountpoints:
+            new_entries.append(("/boot", boot_entry))
+        else:
+            self.log.info("fstab ya contiene una entrada para /boot; no se modifica")
+
+        if not new_entries:
+            return
 
         if existing_lines and not existing_lines[-1].endswith("\n"):
             existing_lines[-1] = existing_lines[-1] + "\n"
 
-        managed_comment = "# Added by Comodoo installer: ensure boot partition mount\n"
-        boot_entry = f"{boot_spec} /boot ext4 defaults 0 2\n"
+        managed_comment = (
+            "# Added by Comodoo installer: root (hardened) and boot mounts\n"
+        )
 
         with open(fstab_path, 'w', encoding='utf-8') as f:
             f.writelines(existing_lines)
             if existing_lines:
                 f.write("\n")
             f.write(managed_comment)
-            f.write(boot_entry)
+            for _mountpoint, entry in new_entries:
+                f.write(entry)
 
-        self.log.info("Entrada de /boot anadida a %s: %s", fstab_path, boot_entry.strip())
+        for mountpoint, entry in new_entries:
+            self.log.info("Entrada de %s anadida a %s: %s", mountpoint, fstab_path, entry.strip())
 
     def _find_bsp_in_existing_mounts(self):
         try:
@@ -717,13 +761,18 @@ class Installer:
         else:
             self.screen.gauge_update(10)
 
+        # rootflags=data=journal aplica el modo de journaling mas seguro de ext4
+        # ya en el montaje inicial del root por el kernel (antes de releer
+        # /etc/fstab), de forma coherente con la entrada de fstab que escribe el
+        # instalador. Protege la base de datos de PostgreSQL frente a 'torn
+        # pages' ante apagados abruptos en SSD/eMMC de consumo sin PLP.
         grub_cfg_template = """set default=0
         set timeout=5
 
         set root=(hd0,msdos1)
 
         menuentry "$menuentry" {
-                linux /bzImage root=$dev ro
+                linux /bzImage root=$dev ro rootflags=data=journal
         }"""
 
         src = Template(grub_cfg_template)

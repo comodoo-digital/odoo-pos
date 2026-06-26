@@ -1,0 +1,21 @@
+[Unit]
+Description=Disable volatile disk write cache (durability hardening)
+Documentation=man:hdparm(8)
+# Debe ejecutarse muy pronto en el arranque, antes de montar sistemas de
+# ficheros de lectura/escritura y, sobre todo, antes de PostgreSQL, para que
+# cualquier escritura posterior ya este protegida.
+DefaultDependencies=no
+After=systemd-udev-settle.service
+Before=local-fs-pre.target postgresql.service
+Wants=local-fs-pre.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/disk-write-cache.sh
+RemainAfterExit=yes
+# No abortar el arranque si el endurecimiento falla en algun disco; el script
+# ya es tolerante a fallos y registra los avisos.
+SuccessExitStatus=0
+
+[Install]
+WantedBy=sysinit.target

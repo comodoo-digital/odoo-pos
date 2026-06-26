@@ -36,7 +36,11 @@ PREFERRED_RPROVIDER_weston-init = "weston-init"
 # - locale-base-es-es adds es_ES locale support used by shell/apps
 # Hardware hotkeys:
 # - triggerhappy daemon + odoo-pos-hotkeys mappings (F1 -> custom hook)
-IMAGE_INSTALL:append = " odoo-pos-kiosk chromium-ozone-wayland odoo-container iotbox iproute2 iproute2-ss weston libinput-bin systemd-analyze cups cups-filters python3-flask python3-requests python3-pyserial usbutils libusb1 odoo-pos-usb-printer-rules kbd kbd-keymaps locale-base-es-es triggerhappy odoo-pos-hotkeys odoo-module-pos-icon-picker odoo-module-pos-product-loader odoo-module-pos-screen-saver"
+# Storage durability hardening:
+# - disk-reliability -> disables the volatile disk write cache on boot so that
+#   PostgreSQL fsync() is honoured by consumer SSD/eMMC (no PLP). Pulls in hdparm.
+# - hdparm -> also kept explicitly for on-target storage diagnostics.
+IMAGE_INSTALL:append = " odoo-pos-kiosk chromium-ozone-wayland odoo-container iotbox iproute2 iproute2-ss weston libinput-bin systemd-analyze cups cups-filters python3-flask python3-requests python3-pyserial usbutils libusb1 odoo-pos-usb-printer-rules kbd kbd-keymaps locale-base-es-es triggerhappy odoo-pos-hotkeys odoo-module-pos-icon-picker odoo-module-pos-product-loader odoo-module-pos-screen-saver disk-reliability hdparm"
 
 # Enforce the final desired unit state in the generated rootfs.
 # This is the most reliable place to do it: even if package postinst/presets
